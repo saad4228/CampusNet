@@ -1,0 +1,6 @@
+playwright>=1.49,<2
+httpx>=0.27,<1
+keyring>=25,<26
+platformdirs>=4,<5
+
+PySide6>=6.7,<7

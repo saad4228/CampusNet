@@ -1,0 +1,38 @@
+# Copy this file to your OS-specific CampusNet config folder as config.toml.
+# Prefer running `campusnet setup`, which saves credentials separately in the OS keyring.
+
+# Portal base URL only. Do NOT include the temporary ?<token> query from the auto-opened popup.
+# Login entry URL for the portal in the project screenshots:
+# https://192.168.55.253:1003/fgtauth
+# After successful login, it redirects to /keepalive?<temporary-token>.
+# Do not configure the post-login keepalive URL as the login entry URL.
+# Replace it if your college uses a different portal host/path.
+portal_url = "https://portal.example.edu/fgtauth"
+
+# Expected path and visible text after a successful login. The URL query may contain a temporary token.
+keepalive_path = "/keepalive"
+keepalive_success_text = "Authentication Keepalive"
+
+# CSS selectors can be customized for your institution's portal.
+username_selector = "input[name='username'], input[type='text']"
+password_selector = "input[name='password'], input[type='password']"
+submit_selector = "button[type='submit'], input[type='submit']"
+
+# This endpoint uses HTTP intentionally so a captive portal can redirect the probe to its login URL.
+# If it returns the expected 204, normal internet connectivity is available.
+connectivity_url = "http://connectivitycheck.gstatic.com/generate_204"
+expected_status = 204
+check_interval_seconds = 30
+retry_delay_seconds = 20
+request_timeout_seconds = 8
+
+# Start headless by default. Use `campusnet run --show-browser` to diagnose the portal.
+headless = true
+
+# Keep false by default. Only enable after verifying the portal certificate with college IT.
+# The screenshot shows Chrome's certificate/security warning; bypassing verification can expose credentials
+# to a spoofed portal, even though the connection still uses TLS encryption.
+ignore_portal_tls_errors = false
+
+# Start CampusNet automatically when the current user signs in (enabled by default).
+launch_at_startup = true

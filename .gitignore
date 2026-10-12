@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.coverage
+
+# Local configuration and secrets
+.env
+config.toml
+*.key
+*.pem
+
+# Browser and debug artifacts
+playwright/.cache/
+playwright-report/
+test-results/
+*.har
+*.trace
+*.log
+.venv-build/
+installer-output/
+
+# Windows packaging outputs
+CampusNet.spec
