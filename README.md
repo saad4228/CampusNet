@@ -1,3 +1,4 @@
+[![Windows Downloads](https://img.shields.io/github/downloads-pre/saad4228/CampusNet/v0.5.9/CampusNet-Setup-0.5.9.exe?label=Windows%20downloads)](https://github.com/saad4228/CampusNet/releases/tag/v0.5.9)
 # CampusNet Auto Login
 
 A cross-platform Python starter project for keeping a Fortinet captive-portal **Authentication Keepalive** page open and attempting recovery through the normal portal login form when internet access is lost.
