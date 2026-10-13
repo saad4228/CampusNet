@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "campusnet-auto-login"
-version = "0.5.9"
+version = "0.5.11"
 description = "Cross-platform captive-portal keepalive and recovery helper"
 readme = "README.md"
 requires-python = ">=3.11"

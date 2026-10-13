@@ -1,5 +1,5 @@
 #define MyAppName "CampusNet"
-#define MyAppVersion "0.5.9"
+#define MyAppVersion "0.5.11"
 #define MyAppPublisher "CampusNet Project"
 
 [Setup]
@@ -24,6 +24,16 @@ SetupLogging=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+
+; Earlier installers copied the new build on top of the old installation, so
+; stale Qt and Chromium payloads from previous versions accumulated in {app}.
+; Remove the bundled application payload before copying the new one.
+; This covers only files this installer created. User data is not stored here:
+; settings live in {localappdata}\CampusNet and credentials live in the Windows
+; Credential Manager, both outside {app}, so neither is affected. The uninstaller
+; files at the {app} root are deliberately left in place.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "dist\CampusNet\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

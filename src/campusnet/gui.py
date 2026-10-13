@@ -6,7 +6,6 @@ production installer yet.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import sys
 from dataclasses import replace
@@ -44,12 +43,49 @@ from .credentials import CredentialError, load_credentials, save_credentials
 APP_TITLE = "CampusNet"
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
 APP_ICON_PATH = ASSET_DIR / "campusnet-app-icon.png"
+# A pre-scaled copy of the 1024x1024 app icon. Window, tray and header icons are
+# never larger than 128px, so decoding the full-size PNG for them is wasted work.
+# The full-size PNG and campusnet.ico are kept for packaging and other platforms.
+SMALL_ICON_PATH = ASSET_DIR / "campusnet-app-icon-128.png"
 MARK_ICON_PATH = ASSET_DIR / "campusnet-mark.png"
+
+
+# Name of the local socket used to detect an instance that is already running.
+SINGLE_INSTANCE_KEY = "CampusNet-desktop-single-instance"
+
+
+def _claim_single_instance():
+    """Claim the single-instance lock for this process.
+
+    Returns ``(already_running, server)``. If another instance is already
+    listening it is asked to show its window and ``already_running`` is True, so
+    this process should exit instead of starting a second copy that would poll
+    and authenticate against the same portal session. If the lock cannot be
+    claimed at all, both values are falsy and startup continues unguarded rather
+    than refusing to run.
+    """
+    # Imported here so the path that runs before the window stays small.
+    from PySide6.QtNetwork import QLocalServer, QLocalSocket
+
+    probe = QLocalSocket()
+    probe.connectToServer(SINGLE_INSTANCE_KEY)
+    if probe.waitForConnected(500):
+        probe.write(b"show")
+        probe.waitForBytesWritten(500)
+        probe.disconnectFromServer()
+        return True, None
+
+    # Nothing answered, so any socket with this name was left behind by a crash.
+    QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
+    server = QLocalServer()
+    if not server.listen(SINGLE_INSTANCE_KEY):
+        return False, None
+    return False, server
 
 
 def _campusnet_icon() -> QIcon:
     """Load the bundled CampusNet icon, with a safe fallback for source checkouts."""
-    for path in (APP_ICON_PATH, MARK_ICON_PATH):
+    for path in (SMALL_ICON_PATH, APP_ICON_PATH, MARK_ICON_PATH):
         if path.is_file():
             return QIcon(str(path))
     return QIcon()
@@ -293,6 +329,10 @@ class BackendWorker(QThread):
             self.state_changed.emit("Internet available · monitoring", "connected")
 
     def run(self) -> None:
+        # Imported here, not at module scope: the event loop is only ever needed
+        # on this worker thread, and the import is off the pre-window path.
+        import asyncio
+
         self._logger.addHandler(self._handler)
         self._logger.setLevel(logging.INFO)
         try:
@@ -538,6 +578,7 @@ class MainWindow(QMainWindow):
         self._allow_close = False
         self._tray_notice_shown = False
         self._current_status_kind = "working"
+        self._setup_retry_done = False
         self.setWindowTitle(f"CampusNet · v{__version__}")
         self.setWindowIcon(_campusnet_icon())
         self.setMinimumSize(780, 600)
@@ -557,9 +598,10 @@ class MainWindow(QMainWindow):
         mark.setObjectName("brandMark")
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mark.setFixedSize(56, 56)
-        if APP_ICON_PATH.is_file():
+        mark_source = SMALL_ICON_PATH if SMALL_ICON_PATH.is_file() else APP_ICON_PATH
+        if mark_source.is_file():
             mark.setPixmap(
-                QPixmap(str(APP_ICON_PATH)).scaled(
+                QPixmap(str(mark_source)).scaled(
                     mark.size(),
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
@@ -830,7 +872,13 @@ class MainWindow(QMainWindow):
             load_credentials()
         except (FileNotFoundError, ValueError, CredentialError) as exc:
             _show_warning(self, "CampusNet setup required", str(exc))
-            self.edit_settings()
+            saved = self.edit_settings()
+            # Setup used to run before the window existed, and monitoring then
+            # started on its own. Retry once after a successful save so finishing
+            # setup still leaves CampusNet monitoring, as it did before.
+            if saved and not self._setup_retry_done:
+                self._setup_retry_done = True
+                self.start_monitoring()
             return
         self.worker = BackendWorker(self.config, self)
         self.worker.log_line.connect(self._append_log)
@@ -867,7 +915,8 @@ class MainWindow(QMainWindow):
         self._set_status("Needs attention", "error")
         _show_warning(self, "CampusNet needs attention", message)
 
-    def edit_settings(self) -> None:
+    def edit_settings(self) -> bool:
+        """Show the setup dialog. Returns True when new settings were saved."""
         try:
             config = load_config()
         except (FileNotFoundError, ValueError):
@@ -885,6 +934,8 @@ class MainWindow(QMainWindow):
                     "Settings saved",
                     "Your settings have been saved. Pause and start monitoring to apply changes to the current session.",
                 )
+            return True
+        return False
 
     def _change_autostart(self, enabled: bool) -> None:
         previous = self.config
@@ -975,28 +1026,49 @@ def main() -> None:
     app.setWindowIcon(_campusnet_icon())
     app.setQuitOnLastWindowClosed(False)
 
+    already_running, instance_server = _claim_single_instance()
+    if already_running:
+        # The live instance has been asked to bring its window to the front.
+        return
+
+    # Only the config file is read before the window appears. The credential
+    # store is not touched here: MainWindow.start_monitoring already validates
+    # credentials just after the window is shown, and reads them for real on the
+    # worker thread. Probing the OS credential store here duplicated that work
+    # and its result was discarded.
     try:
         config = load_config()
-        load_credentials()
-    except (FileNotFoundError, ValueError, CredentialError):
+    except (FileNotFoundError, ValueError):
         dialog = SetupDialog()
         if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.saved_config:
             return
         config = dialog.saved_config
 
-    startup_error: str | None = None
+    window = MainWindow(config)
+    window.show()
+
+    if instance_server is not None:
+        def show_for_other_instance() -> None:
+            connection = instance_server.nextPendingConnection()
+            if connection is not None:
+                connection.disconnectFromServer()
+                connection.deleteLater()
+            window._show_from_tray()
+
+        instance_server.newConnection.connect(show_for_other_instance)
+        # Keep both alive for as long as the window lives.
+        window._instance_server = instance_server
+        window._instance_handler = show_for_other_instance
+
+    # Reconciled after the window is on screen. Older config files have no
+    # launch_at_startup key and default to True, so the OS login item is
+    # synchronized to match the checked UI and the persisted setting.
     try:
-        # Older config files have no launch_at_startup key and default to True.
-        # Synchronize the OS login item so the checked UI matches real behavior.
         if is_enabled() != config.launch_at_startup:
             set_enabled(config.launch_at_startup)
     except Exception as exc:
-        startup_error = str(exc)
+        _show_warning(window, "Startup setting failed", str(exc))
 
-    window = MainWindow(config)
-    window.show()
-    if startup_error:
-        _show_warning(window, "Startup setting failed", startup_error)
     sys.exit(app.exec())
 
 

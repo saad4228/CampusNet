@@ -11,7 +11,7 @@ This builds a Windows-only package. Run the build on Windows, not on macOS/Linux
 
 ## Build
 
-1. Extract the CampusNet source ZIP into a folder, e.g. `C:\Users\<you>\Projects\campusnet-desktop-v0.5.9`.
+1. Extract the CampusNet source ZIP into a folder, e.g. `C:\Users\<you>\Projects\campusnet-desktop-v0.5.11`.
 2. Open that folder in VS Code. It should contain `pyproject.toml`, `build_windows.ps1`, and `CampusNet.iss`.
 3. In a PowerShell terminal opened in that folder, run:
 
@@ -21,7 +21,7 @@ This builds a Windows-only package. Run the build on Windows, not on macOS/Linux
    ```
 
 4. The script creates an isolated `.venv-build`, installs build dependencies, downloads Playwright's Chromium headless shell into its package-local browser directory (the GUI uses headless mode), runs the tests, and creates `dist\CampusNet\CampusNet.exe`. If it detects Inno Setup, it also compiles the installer.
-5. If the build completed but the installer wasn't compiled, open `CampusNet.iss` in Inno Setup Compiler and click **Compile**. The output should be `installer-output\CampusNet-Setup-0.5.9.exe`.
+5. If the build completed but the installer wasn't compiled, open `CampusNet.iss` in Inno Setup Compiler and click **Compile**. The output should be `installer-output\CampusNet-Setup-0.5.11.exe`.
 
 ## Mandatory test before sharing
 

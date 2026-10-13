@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-import keyring
+# `keyring` is imported inside each function on purpose. Importing it pulls in
+# jaraco.context, urllib.request, http.client, email and importlib_metadata,
+# which is the single largest import cost on the desktop app's startup path.
+# The credential store itself is unchanged: the same backend, service name and
+# read-back verification are used, only later.
 
 SERVICE_NAME = "CampusNet Auto Login"
 USERNAME_KEY = "portal-username"
@@ -14,6 +18,8 @@ class CredentialError(RuntimeError):
 def save_credentials(username: str, password: str) -> None:
     if not username.strip() or not password:
         raise ValueError("Username and password cannot be empty.")
+    import keyring
+
     try:
         keyring.set_password(SERVICE_NAME, USERNAME_KEY, username.strip())
         keyring.set_password(SERVICE_NAME, PASSWORD_KEY, password)
@@ -32,6 +38,8 @@ def save_credentials(username: str, password: str) -> None:
 
 
 def load_credentials() -> tuple[str, str]:
+    import keyring
+
     try:
         username = keyring.get_password(SERVICE_NAME, USERNAME_KEY)
         password = keyring.get_password(SERVICE_NAME, PASSWORD_KEY)
@@ -43,6 +51,9 @@ def load_credentials() -> tuple[str, str]:
 
 
 def delete_credentials() -> None:
+    import keyring
+    import keyring.errors
+
     errors: list[Exception] = []
     for key in (USERNAME_KEY, PASSWORD_KEY):
         try:

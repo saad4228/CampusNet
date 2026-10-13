@@ -27,6 +27,10 @@ class AppConfig:
     connectivity_url: str = "http://connectivitycheck.gstatic.com/generate_204"
     expected_status: int = 204
     check_interval_seconds: int = 30
+    # How often to re-probe while offline. A manual logout or a late Wi-Fi
+    # association is noticed within this many seconds instead of waiting a full
+    # check_interval_seconds. Online checks still use check_interval_seconds.
+    offline_check_interval_seconds: int = 3
     retry_delay_seconds: int = 20
     request_timeout_seconds: int = 8
     headless: bool = True
@@ -87,6 +91,11 @@ def load_config(path: Path | None = None) -> AppConfig:
     check_interval = _positive_int(
         data, "check_interval_seconds", defaults["check_interval_seconds"].default
     )
+    offline_check_interval = _positive_int(
+        data,
+        "offline_check_interval_seconds",
+        defaults["offline_check_interval_seconds"].default,
+    )
     retry_delay = _positive_int(data, "retry_delay_seconds", defaults["retry_delay_seconds"].default)
     timeout = _positive_int(data, "request_timeout_seconds", defaults["request_timeout_seconds"].default)
 
@@ -119,6 +128,7 @@ def load_config(path: Path | None = None) -> AppConfig:
         connectivity_url=connectivity_url,
         expected_status=expected_status,
         check_interval_seconds=check_interval,
+        offline_check_interval_seconds=offline_check_interval,
         retry_delay_seconds=retry_delay,
         request_timeout_seconds=timeout,
         headless=headless,
@@ -142,6 +152,7 @@ def write_config(config: AppConfig, path: Path | None = None) -> Path:
         f"connectivity_url = {json.dumps(config.connectivity_url)}",
         f"expected_status = {config.expected_status}",
         f"check_interval_seconds = {config.check_interval_seconds}",
+        f"offline_check_interval_seconds = {config.offline_check_interval_seconds}",
         f"retry_delay_seconds = {config.retry_delay_seconds}",
         f"request_timeout_seconds = {config.request_timeout_seconds}",
         f"headless = {'true' if config.headless else 'false'}",

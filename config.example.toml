@@ -23,6 +23,9 @@ submit_selector = "button[type='submit'], input[type='submit']"
 connectivity_url = "http://connectivitycheck.gstatic.com/generate_204"
 expected_status = 204
 check_interval_seconds = 30
+# While offline, probe this often so a manual logout or a late Wi-Fi association
+# is noticed quickly instead of waiting a full check_interval_seconds.
+offline_check_interval_seconds = 3
 retry_delay_seconds = 20
 request_timeout_seconds = 8
 

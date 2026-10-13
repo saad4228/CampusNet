@@ -80,6 +80,46 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_config(path)
 
+    def test_offline_check_interval_defaults_to_three_seconds(self):
+        self.assertEqual(AppConfig(portal_url="https://portal.example.edu/login").offline_check_interval_seconds, 3)
+
+    def test_offline_check_interval_round_trips(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "config.toml"
+            original = AppConfig(
+                portal_url="https://portal.example.edu/login",
+                offline_check_interval_seconds=5,
+            )
+            write_config(original, path)
+            self.assertIn("offline_check_interval_seconds = 5", path.read_text(encoding="utf-8"))
+            self.assertEqual(load_config(path).offline_check_interval_seconds, 5)
+
+    def test_legacy_config_without_offline_interval_still_loads(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "config.toml"
+            path.write_text(
+                """portal_url = "https://portal.example.edu/login"
+check_interval_seconds = 30
+""",
+                encoding="utf-8",
+            )
+            loaded = load_config(path)
+            self.assertEqual(loaded.offline_check_interval_seconds, 3)
+            self.assertEqual(loaded.check_interval_seconds, 30)
+
+    def test_rejects_invalid_offline_check_interval(self):
+        for bad in ("0", "-5", "true", '"3"'):
+            with self.subTest(value=bad), tempfile.TemporaryDirectory() as temp_dir:
+                path = Path(temp_dir) / "config.toml"
+                path.write_text(
+                    f"""portal_url = "https://portal.example.edu/login"
+offline_check_interval_seconds = {bad}
+""",
+                    encoding="utf-8",
+                )
+                with self.assertRaises(ValueError):
+                    load_config(path)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,38 @@ from .portal import AuthenticationRequired, ensure_keepalive_page
 
 LOG = logging.getLogger("campusnet")
 
+# Recovery backoff is capped so a long outage does not retry forever at speed.
+MAX_RECOVERY_DELAY_SECONDS = 300
+
+
+def should_attempt_recovery(
+    fresh_portal_url: str | None,
+    failures: int,
+    now: float,
+    next_recovery_at: float,
+) -> bool:
+    """Decide whether to run the portal flow after a failed connectivity probe.
+
+    A fresh FortiGate redirect is positive proof that the portal has logged this
+    device out, so recovery runs on the first failed probe. Without a redirect the
+    failure may be an ordinary network blip, so a second consecutive failure is
+    still required. The backoff window applies to both cases.
+    """
+    if now < next_recovery_at:
+        return False
+    return bool(fresh_portal_url) or failures >= 2
+
+
+def next_check_delay(config: AppConfig, online: bool, recovered: bool) -> float:
+    """Seconds to wait before the next connectivity probe."""
+    if recovered:
+        # Confirm the new session immediately so the UI reports the real state
+        # instead of waiting out a full interval.
+        return 0.0
+    if online:
+        return float(config.check_interval_seconds)
+    return float(min(config.offline_check_interval_seconds, config.check_interval_seconds))
+
 
 async def probe_connectivity(
     client: httpx.AsyncClient, config: AppConfig
@@ -135,6 +167,7 @@ async def run_app(
                 while stop_event is None or not stop_event.is_set():
                     online, fresh_portal_url = await probe_connectivity(client, config)
                     now = loop.time()
+                    recovered = False
                     if online:
                         if failures:
                             LOG.info("Internet access has recovered.")
@@ -144,8 +177,10 @@ async def run_app(
                     else:
                         failures += 1
                         LOG.warning("Connectivity check failed (%s consecutive check(s)).", failures)
-                        # Require multiple failures and back off to avoid rapid re-logins during outages.
-                        if failures >= 2 and now >= next_recovery_at:
+                        # A fresh redirect means the portal logged us out, so recover at
+                        # once. Otherwise require a second failure, and back off either
+                        # way to avoid rapid re-logins during outages.
+                        if should_attempt_recovery(fresh_portal_url, failures, now, next_recovery_at):
                             if fresh_portal_url:
                                 try:
                                     await ensure_keepalive_page(
@@ -156,6 +191,7 @@ async def run_app(
                                         start_url=fresh_portal_url,
                                     )
                                     LOG.info("Portal authentication/keepalive was refreshed.")
+                                    recovered = True
                                 except AuthenticationRequired as exc:
                                     LOG.error("Automatic recovery needs attention: %s", exc)
                             else:
@@ -171,6 +207,7 @@ async def run_app(
                                             start_url=browser_portal_url,
                                         )
                                         LOG.info("Portal authentication/keepalive was refreshed via browser discovery.")
+                                        recovered = True
                                     except AuthenticationRequired as exc:
                                         LOG.error("Automatic recovery needs attention: %s", exc)
                                 else:
@@ -180,15 +217,16 @@ async def run_app(
                                         "no credentials were submitted."
                                     )
                             next_recovery_at = loop.time() + recovery_delay
-                            recovery_delay = min(recovery_delay * 2, 300)
+                            recovery_delay = min(recovery_delay * 2, MAX_RECOVERY_DELAY_SECONDS)
                             failures = 0
+                    delay = next_check_delay(config, online, recovered)
+                    if delay <= 0:
+                        continue
                     if stop_event is None:
-                        await asyncio.sleep(config.check_interval_seconds)
+                        await asyncio.sleep(delay)
                     else:
                         try:
-                            await asyncio.wait_for(
-                                stop_event.wait(), timeout=config.check_interval_seconds
-                            )
+                            await asyncio.wait_for(stop_event.wait(), timeout=delay)
                         except TimeoutError:
                             pass
         finally:

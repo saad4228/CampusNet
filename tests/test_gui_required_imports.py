@@ -18,7 +18,9 @@ class GuiRequiredImportsTests(unittest.TestCase):
     def test_settings_button_is_connected_to_settings_handler(self):
         source = (ROOT / "src" / "campusnet" / "gui.py").read_text(encoding="utf-8")
         self.assertIn('self.settings_button.clicked.connect(self.edit_settings)', source)
-        self.assertIn("def edit_settings(self) -> None:", source)
+        # edit_settings reports whether it saved, so start_monitoring can resume
+        # after first-run setup completes.
+        self.assertIn("def edit_settings(self) -> bool:", source)
 
 
 if __name__ == "__main__":
