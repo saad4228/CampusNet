@@ -1,6 +1,5 @@
 
 # CampusNet Auto Login
-##Seamless Campus Internet Access
 
 I built CampusNet to solve a small but frustrating problem faced by students at my college. Every four hours, the college Wi-Fi and LAN require students to manually re-enter their login credentials, interrupting study sessions, coding, online classes, downloads, and other work.
 
