@@ -39,7 +39,6 @@ from . import __version__
 from .autostart import is_enabled, set_enabled
 from .config import AppConfig, load_config, validate_portal_base_url, write_config
 from .credentials import CredentialError, load_credentials, save_credentials
-from .monitor import run_app
 
 
 APP_TITLE = "CampusNet"
@@ -300,7 +299,11 @@ class BackendWorker(QThread):
             async def worker_main() -> None:
                 self._loop = asyncio.get_running_loop()
                 self._stop_event = asyncio.Event()
-                await run_app(self.config, show_browser=False, stop_event=self._stop_event)
+                # Import Playwright/httpx only on the background thread. This keeps
+                # the dashboard responsive while the browser engine initializes.
+                from .monitor import run_app
+
+                await run_app(replace(self.config, headless=True), show_browser=False, stop_event=self._stop_event)
 
             asyncio.run(worker_main())
         except CredentialError as exc:

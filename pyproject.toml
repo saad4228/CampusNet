@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "campusnet-auto-login"
-version = "0.5.8"
+version = "0.5.9"
 description = "Cross-platform captive-portal keepalive and recovery helper"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,7 +15,7 @@ dependencies = [
   "httpx>=0.27,<1",
   "keyring>=25,<26",
   "platformdirs>=4,<5",
-  "PySide6>=6.7,<7",
+  "PySide6-Essentials>=6.7,<7",
 ]
 
 [project.scripts]

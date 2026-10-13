@@ -19,11 +19,12 @@ if (-not (Test-Path $Python)) {
     throw 'Python 3.11 was not found. Install it from python.org or run: py install 3.11'
 }
 
-# Playwright documents this mode for bundling browser binaries with PyInstaller.
+# CampusNet's desktop worker always uses headless Chromium. Installing only the
+# headless shell avoids bundling the full browser, reducing installer size and AV scanning.
 $env:PLAYWRIGHT_BROWSERS_PATH = '0'
 Invoke-Checked 'Upgrade pip' { & $Python -m pip install --upgrade pip }
 Invoke-Checked 'Install CampusNet and build tools' { & $Python -m pip install -e . pyinstaller }
-Invoke-Checked 'Download bundled Chromium' { & $Python -m playwright install chromium }
+Invoke-Checked 'Download bundled Chromium headless shell' { & $Python -m playwright install chromium --only-shell }
 Invoke-Checked 'Run automated tests' { & $Python -m unittest discover -s tests -v }
 
 Write-Host "`n== Build standalone CampusNet application ==" -ForegroundColor Cyan
@@ -40,7 +41,6 @@ $Hook = Join-Path $ProjectRoot 'packaging\playwright_runtime_hook.py'
     --collect-all playwright `
     --collect-all keyring `
     --collect-all campusnet `
-    --collect-all PySide6 `
     campusnet_gui_entry.py
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller build failed with exit code $LASTEXITCODE. Read the first error above."
@@ -54,6 +54,8 @@ Write-Host "`nStandalone build ready: $Exe" -ForegroundColor Green
 Write-Host 'Next: test this EXE before creating an installer.' -ForegroundColor Yellow
 
 $IsccCandidates = @(
+    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 7\ISCC.exe'),
+    (Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe'),
     (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
     (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
 ) | Where-Object { $_ -and (Test-Path $_) }
@@ -61,7 +63,7 @@ $Iscc = $IsccCandidates | Select-Object -First 1
 if ($Iscc) {
     New-Item -ItemType Directory -Path (Join-Path $ProjectRoot 'installer-output') -Force | Out-Null
     Invoke-Checked 'Compile Windows installer with Inno Setup' { & $Iscc (Join-Path $ProjectRoot 'CampusNet.iss') }
-    $Installer = Join-Path $ProjectRoot 'installer-output\CampusNet-Setup-0.5.8.exe'
+    $Installer = Join-Path $ProjectRoot 'installer-output\CampusNet-Setup-0.5.9.exe'
     if (Test-Path $Installer) {
         Write-Host "`nInstaller ready: $Installer" -ForegroundColor Green
     }

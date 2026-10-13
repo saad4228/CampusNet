@@ -6,12 +6,12 @@ This builds a Windows-only package. Run the build on Windows, not on macOS/Linux
 
 1. Windows 10/11, 64-bit.
 2. Python 3.11 installed and available using `py -3.11`.
-3. Inno Setup 6 installed from the official site: https://jrsoftware.org/isinfo.php
+3. Inno Setup 7 (or 6) installed from the official site: https://jrsoftware.org/isinfo.php
 4. Internet access during the first build so pip and Playwright can download dependencies and Chromium.
 
 ## Build
 
-1. Extract the CampusNet source ZIP into a folder, e.g. `C:\Users\<you>\Projects\campusnet-desktop-v0.5.8`.
+1. Extract the CampusNet source ZIP into a folder, e.g. `C:\Users\<you>\Projects\campusnet-desktop-v0.5.9`.
 2. Open that folder in VS Code. It should contain `pyproject.toml`, `build_windows.ps1`, and `CampusNet.iss`.
 3. In a PowerShell terminal opened in that folder, run:
 
@@ -20,8 +20,8 @@ This builds a Windows-only package. Run the build on Windows, not on macOS/Linux
    .\build_windows.ps1
    ```
 
-4. The script creates an isolated `.venv-build`, installs build dependencies, downloads Chromium into Playwright's package-local browser directory, runs the tests, and creates `dist\CampusNet\CampusNet.exe`. If it detects Inno Setup, it also compiles the installer.
-5. If the build completed but the installer wasn't compiled, open `CampusNet.iss` in Inno Setup Compiler and click **Compile**. The output should be `installer-output\CampusNet-Setup-0.5.8.exe`.
+4. The script creates an isolated `.venv-build`, installs build dependencies, downloads Playwright's Chromium headless shell into its package-local browser directory (the GUI uses headless mode), runs the tests, and creates `dist\CampusNet\CampusNet.exe`. If it detects Inno Setup, it also compiles the installer.
+5. If the build completed but the installer wasn't compiled, open `CampusNet.iss` in Inno Setup Compiler and click **Compile**. The output should be `installer-output\CampusNet-Setup-0.5.9.exe`.
 
 ## Mandatory test before sharing
 
@@ -39,4 +39,4 @@ This builds a Windows-only package. Run the build on Windows, not on macOS/Linux
 - It includes the current configured portal TLS workaround as implemented in source; explain its security implications and do not weaken TLS verification globally.
 - It builds x64 Windows output. Build/test separately for other architectures if needed.
 
-The final build directory can be large because Playwright Chromium is bundled to avoid requiring students to install a browser separately. Keep the complete `dist\CampusNet` directory intact until it has been included in the installer.
+The build bundles Playwright's Chromium headless shell rather than the full browser to reduce the final package size to avoid requiring students to install a browser separately. Keep the complete `dist\CampusNet` directory intact until it has been included in the installer.

@@ -23,6 +23,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
       - name: Install Playwright Chromium
-        run: playwright install chromium
+        run: playwright install chromium --only-shell
       - name: Run tests
         run: python -m unittest discover -s tests -v

@@ -1,5 +1,5 @@
 #define MyAppName "CampusNet"
-#define MyAppVersion "0.5.8"
+#define MyAppVersion "0.5.9"
 #define MyAppPublisher "CampusNet Project"
 
 [Setup]
@@ -11,7 +11,7 @@ DefaultDirName={localappdata}\Programs\CampusNet
 DefaultGroupName=CampusNet
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-ArchitecturesAllowed=x64
+ArchitecturesAllowed=x64compatible
 OutputDir=installer-output
 OutputBaseFilename=CampusNet-Setup-{#MyAppVersion}
 SetupIconFile=src\campusnet\assets\campusnet.ico
@@ -38,4 +38,4 @@ Filename: "{app}\CampusNet.exe"; Description: "Launch CampusNet"; Flags: nowait 
 ; CampusNet manages the per-user Run entry from its Launch at startup setting.
 ; Remove that entry during uninstall so it doesn't point to a deleted executable.
 [UninstallRun]
-Filename: "{sys}\reg.exe"; Parameters: "delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Run"" /v ""CampusNet"" /f"; Flags: runhidden
+Filename: "{sys}\reg.exe"; Parameters: "delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Run"" /v ""CampusNet"" /f"; Flags: runhidden; RunOnceId: "RemoveCampusNetAutoStart"

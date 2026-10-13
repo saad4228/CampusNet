@@ -2,7 +2,9 @@
 
 A cross-platform Python starter project for keeping a Fortinet captive-portal **Authentication Keepalive** page open and attempting recovery through the normal portal login form when internet access is lost.
 
-**Status: experimental desktop prototype.** The core login flow has been tested on one college portal, but full 14,400-second session maintenance, forced-logout recovery, headless operation, and packaged installers have not yet been validated. Portal HTML, form selectors, redirects, CAPTCHA/MFA requirements, and firewall timeout policies vary by institution.
+**Startup performance (v0.5.9):** The GUI defers importing the network/browser monitor until its background thread starts; the Windows build uses `PySide6-Essentials` and Playwright's Chromium headless shell, and does not collect every PySide6 add-on. This should reduce packaged size and time spent scanning/initializing unused components. Actual cold-start timing still needs to be measured on a clean Windows install.
+
+**Status: experimental Windows preview build.** The normal portal-login flow has been demonstrated on one college portal, but the complete 14,400-second session, forced-logout recovery, and startup speed on a clean installed machine still need validation. Portal HTML, form selectors, redirects, CAPTCHA/MFA requirements, and firewall timeout policies vary by institution.
 
 ## Planned behavior
 
@@ -11,7 +13,7 @@ A cross-platform Python starter project for keeping a Fortinet captive-portal **
 3. CampusNet makes a plain-HTTP connectivity probe without following redirects. If FortiGate intercepts it, the app looks for a fresh `/fgtauth?<temporary-token>` URL in either an HTTP `Location` header or the intercepted response HTML, and keeps that value in memory only. If the HTTP client does not see it, Chromium makes a browser-based discovery attempt.
 4. A dedicated Chromium session opens that temporary URL, submits the ordinary portal form, and verifies that the `Authentication Keepalive` page appeared.
 5. The app leaves the keepalive page open in its own browser session and polls connectivity. When access is lost, it looks for a fresh portal redirect before attempting recovery.
-6. The desktop prototype has a basic setup window, activity log, background worker, tray behavior when supported, and per-user auto-start setting (enabled by default; the user can turn it off). It is not packaged into end-user installers yet.
+6. The desktop app has a setup window, activity log, background worker, tray behavior when supported, and per-user auto-start setting (enabled by default; the user can turn it off). The source archive contains build scripts rather than prebuilt binaries; the Windows installer can be generated with the included packaging guide.
 
 This does not bypass the firewall or extend an administrator-enforced hard timeout. If the institution requires a CAPTCHA, MFA, additional consent, or a manual action, the user must complete it.
 
@@ -71,7 +73,7 @@ Credentials are stored separately in the OS credential store. If your Linux desk
 
 ## Desktop application prototype
 
-The v0.5.8 desktop preview replaces the awkward native-style message box layout with a compact, consistently styled CampusNet dialog. Titles and messages align naturally, text wraps below the heading, and action buttons have clear primary/secondary styling independent of the OS dark theme. Earlier previews also include the simplified status-first dashboard, setup hints for the portal URL, and an explicit warning around portal certificate exceptions. These are UI improvements only; they do not change the authentication engine or imply that four-hour sessions and recovery are fully verified.
+The v0.5.9 desktop preview improves perceived startup speed by deferring monitor imports and reducing packaged browser/Qt components. It also uses compact, consistently styled CampusNet dialogs. Titles and messages align naturally, text wraps below the heading, and action buttons have clear primary/secondary styling independent of the OS dark theme. Earlier previews also include the simplified status-first dashboard, setup hints for the portal URL, and an explicit warning around portal certificate exceptions. These are UI improvements only; they do not change the authentication engine or imply that four-hour sessions and recovery are fully verified.
 
 After installing the package and Playwright browser, launch the GUI with:
 
@@ -81,7 +83,7 @@ campusnet-desktop
 
 On first launch, the setup window asks for the institution's portal URL and credentials. The password is stored using the OS credential store. The GUI includes a status display, recent activity log, a “Launch at startup” option that is checked by default, and a tray/menu-bar behavior when a system tray is available. Closing the window hides it to the tray; use **Exit CampusNet** from the tray or app to stop monitoring.
 
-For this source prototype, the GUI still needs to be launched from the development environment. No signed Windows `.exe` installer or macOS `.dmg` is included yet. Those will be created only after the GUI, browser bundling, login-on-startup behavior, and session recovery have been tested on each OS.
+The source archive does not include generated binary artifacts. Use `WINDOWS_INSTALLER_GUIDE.md` to create an unsigned Windows installer. A macOS `.dmg` has not yet been built or tested.
 
 ## Brand assets
 
@@ -129,11 +131,11 @@ Use `campusnet reset-credentials` to remove the saved credentials. Use `Ctrl+C` 
 
 - Generic selectors will not fit every portal; the actual college form must be tested.
 - Redirect discovery tries HTTP headers, intercepted response HTML, and Chromium navigation, but a portal that exposes no fresh FortiGate query token through these paths may still need network-specific discovery logic.
-- Headless Chromium may behave differently from a normal browser. If the keepalive timer is throttled or does not refresh in headless mode, use the visible-browser mode while diagnosing; a packaged background/tray implementation is not included yet.
+- Headless Chromium may behave differently from a normal browser. If the keepalive timer is throttled or does not refresh in headless mode, diagnose using a development environment with the full Chromium browser. Basic tray controls exist, but their lifecycle and recovery behavior need testing on each platform.
 - A hard timeout configured by the administrator may force a new authentication even when keepalive is open.
-- The GUI remains a source prototype. It has a basic tray behavior where supported, but native notification polish and signed installers are not complete.
+- The GUI and installer are still experimental. Native notification polish, code signing, and cross-platform package verification are not complete.
 - The current four-hour session cycle and forced-logout recovery still require a real network test.
-- The auto-start entry points to the current Python environment in source mode; a packaged app must replace this with its stable installed executable path. Startup is enabled by default; unchecking “Launch at startup” saves the opt-out so it remains off on future launches.
+- The auto-start entry uses the current Python environment in source mode and the installed executable in a frozen/packaged build. Startup is enabled by default; unchecking “Launch at startup” saves the opt-out so it remains off on future launches.
 
 ## Development
 
@@ -154,7 +156,7 @@ python -m unittest discover -s tests -v
 - [ ] Safe manual-intervention handling and improved state detection
 - [x] Basic system-tray controls on platforms with a system tray
 - [ ] Polished native notifications
-- [ ] Auto-start on login on Windows, macOS, and Linux
+- [x] Basic per-user auto-start integration on Windows, macOS, and Linux (packaged startup still requires platform testing)
 - [x] Automated CI test matrix for Windows, macOS, and Linux
 - [ ] Packaged releases and installers
 - [ ] Contributor guide and platform-specific documentation
@@ -165,4 +167,4 @@ MIT; see [LICENSE](LICENSE).
 
 ## Build a Windows installer (developer preview)
 
-See [`WINDOWS_INSTALLER_GUIDE.md`](WINDOWS_INSTALLER_GUIDE.md). On a Windows 10/11 x64 machine with Python 3.11 and Inno Setup 6 installed, run `build_windows.ps1` to build a one-folder app with bundled Playwright Chromium and compile an Inno Setup installer. Test the packaged app thoroughly before sharing it; the 14,400-second cycle and forced-logout recovery remain unverified.
+See [`WINDOWS_INSTALLER_GUIDE.md`](WINDOWS_INSTALLER_GUIDE.md). On a Windows 10/11 x64 machine with Python 3.11 and Inno Setup 7 (or 6) installed, run `build_windows.ps1` to build a one-folder app with Playwright Chromium headless shell only and compile an Inno Setup installer. The build excludes unused PySide6 add-on modules and imports the monitoring engine only after the window is shown to improve perceived startup speed. Test the packaged app thoroughly before sharing it; the 14,400-second cycle and forced-logout recovery remain unverified.
