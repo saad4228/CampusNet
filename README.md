@@ -10,7 +10,14 @@ My goal is simple: **help students stay connected and focused on their work inst
 Built with Python, PySide6, and Playwright, CampusNet runs in the background and is designed to minimize interruptions while keeping users in control of their credentials and settings.
 
 CampusNet is a student-built project, developed to solve a real problem in my campus environment. It is currently an experimental preview, and automatic recovery depends on the behavior and configuration of the institution's captive portal.
+
 A cross-platform Python starter project for keeping a Fortinet captive-portal **Authentication Keepalive** page open and attempting recovery through the normal portal login form when internet access is lost.
+
+<p align="center">
+  <img src="docs/screenshots/campusnet-desktop-dashboard.png" alt="CampusNet desktop window showing an online status card, the three things CampusNet handles, and the recent activity log" width="840">
+</p>
+
+<p align="center"><sub>The CampusNet desktop app on Windows after session monitoring recovered a dropped portal session.</sub></p>
 
 **Reconnect and startup (v0.5.11):** After a manual portal logout, or when Wi-Fi associates after the app has started, CampusNet now authenticates on the first failed connectivity probe whenever a fresh portal redirect is detected, instead of waiting out two full check intervals. While offline it probes every `offline_check_interval_seconds` (default 3) rather than every 30 seconds, and only one instance can run at a time. v0.5.10 measured 0.58 s to a visible window on an installed build, down from 2.20 s on v0.5.9, by removing the pre-window credential-store probe and the stale payload that earlier installers left behind. Reconnect timing against a real portal has not been measured yet; see `STARTUP_PERFORMANCE.md`.
 
